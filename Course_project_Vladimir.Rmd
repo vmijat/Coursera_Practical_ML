@@ -127,7 +127,7 @@ dim(testing_set)
 
 Let's examine the correlation among those variable. 
 
-```{r}
+```{r out.width="80%"}
 corr_matrix <- cor(training_set[, -53])
 corrplot(corr_matrix, 
          type = "lower",
@@ -171,6 +171,10 @@ model_rf <- train(classe ~ .,
 model_rf$finalModel
 
 ```
+
+
+
+
 
 Let's see how it performs on `testing_set` 
 
@@ -216,7 +220,7 @@ confusionMatrix(prediction_xgboost, testing_set$classe)
 
 ### Decision Tree
 
-```{r cache=TRUE}
+```{r cache=TRUE, out.width="50%"}
 train_control <- trainControl(method="cv", number=3, verboseIter=F)
 
 model_trees <- train(classe ~ ., 
@@ -224,7 +228,8 @@ model_trees <- train(classe ~ .,
                    trControl = train_control,
                    data = training_set)
 
-rattle::fancyRpartPlot(model_trees$finalModel)
+rattle::fancyRpartPlot(model_trees$finalModel,
+                       sub = "Decision Tree")
 ```
 Let's see how it performs on `testing_set` 
 
