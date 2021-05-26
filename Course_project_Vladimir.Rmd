@@ -29,6 +29,7 @@ library(nnet)
 library(caret)
 library(corrplot)
 library(rattle)
+set.seed(2282)
 ```
 
 ## Load and Prepare Data
@@ -243,7 +244,7 @@ From the accuracy point of view we have the following results (out-of-sample acc
 
 1. Random Forest: **0.9927**
 2. XGBoost: **0.9942 **
-3. Decision Tree (rpart): 0.5514
+3. Decision Tree (rpart): **0.5514**
 
 
 
@@ -271,10 +272,6 @@ print(prediction_xgboost_validation)
 print("Decision Tree:")
 print(prediction_tree_validation)
 
-
-rbind(prediction_rf_validation,
-      prediction_xgboost_validation,
-      prediction_tree_validation)
 
 ```
 
