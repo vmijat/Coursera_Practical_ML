@@ -1,0 +1,280 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Vladimir Mijatovic"
+date: "5/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Predicting how well the exercise is performed
+
+The main goal of the project is the analysis of the manner of how well the exercise is performed.  
+
+### Background 
+Using devices such as *Jawbone Up*, *Nike FuelBand*, and *Fitbit* it is now possible to collect a large amount of data about personal activity relatively inexpensively. 
+In this particular datased, a group of 6 participants have collected measures from various sensors while doing barbell lifts correctly and incorrectly.  
+More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Prepare the Environment
+
+Let's prepare the environment
+
+```{r echo=FALSE}
+#setup for the needed libraries
+library(tidyverse)
+library(nnet)
+library(caret)
+library(corrplot)
+library(rattle)
+```
+
+## Load and Prepare Data
+
+First let's load and prepare the data
+
+```{r load_data, echo=FALSE}
+
+trainData <- read.csv("./_data/pml-training.csv", 
+                      header = T, 
+                      check.names = F,
+                      stringsAsFactors = F)
+testData <- read.csv("./_data/pml-testing.csv",
+                     header = T,
+                     check.names = F,
+                     stringsAsFactors = F)
+
+dim(testData)
+```
+
+We can see that test data has only `20` observations.  It is better therefore to call this data `validationData`, and to partition _trainData_ into two groups.  But before partitioning we need to do some cleaning. 
+
+```{r}
+validationData <- testData
+testData <- NULL
+```
+
+
+# Exploratory Data Analisys
+
+Let's see all the data fields
+
+```{r}
+str(trainData)
+```
+Let's remove unnecessary variables.  Variables that have a lot of NA should be removed.  Which variables have lot of NAs?
+
+```{r}
+na_count <-sapply(trainData, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+na_count
+```
+
+Seems like there are columns that are only NAs.  These should be removed, as they can't contribute to our prediction model. 
+
+```{r}
+#get rid of columns where NAs are more than 90%
+trainData <- trainData[, colMeans(is.na(trainData)) < 0.9]
+validationData <- validationData[, colMeans(is.na(validationData)) < 0.9]
+
+# get rid of columns that don't contribute (e.g. timestamp, name, etc)
+trainData <- trainData[, -c(1:7)]
+validationData <- validationData[, -c(1:7)]
+
+```
+
+### Remove Variables With Near-Zero Variance
+
+We should remove variables that are having Near-Zero Variance, as they don't contribute to our model either. 
+
+```{r}
+near_zero_variables <- nearZeroVar(trainData)
+```
+
+These are variables that should be removed: 
+``` {r}
+names(trainData)[near_zero_variables]
+```
+
+```{r}
+trainData <- trainData[, -near_zero_variables]
+
+```
+
+
+
+### Partitioning 
+Now let's partition training dataset:
+```{r}
+inTrain <- createDataPartition(trainData$classe, 
+                               p = 0.7, 
+                               list = FALSE)
+
+training_set <- trainData[inTrain, ]
+testing_set <- trainData[-inTrain, ]
+
+#check their dimensions
+dim(training_set)
+
+dim(testing_set)
+
+```
+
+## Correlation Analysis
+
+Let's examine the correlation among those variable. 
+
+```{r}
+corr_matrix <- cor(training_set[, -53])
+corrplot(corr_matrix, 
+         type = "lower",
+         tl.cex = 0.6,
+         tl.col = rgb(0, .5, .1))
+```
+
+
+## Prediction Model Building
+
+First let's make response variable `classe` into ordered factor variable
+
+```{r}
+# make it into factor and relevel (so that "A" is reference level)
+training_set$classe <- factor(training_set$classe)
+training_set$classe <- relevel(training_set$classe, 
+                            ref = "A")
+
+testing_set$classe <- factor(testing_set$classe)
+testing_set$classe <- relevel(testing_set$classe, 
+                            ref = "A")
+```
+
+
+Now let's train our models:
+
+### Random Forest
+
+Let's train the model
+```{r cache=TRUE}
+
+model_rf <- train(classe ~ .,
+                  method = "rf",
+                  data = training_set,
+                  trControl = trainControl(
+                          method = "cv"
+                  ),
+                  number = 5,
+                  allowParallel = TRUE)
+
+model_rf$finalModel
+
+```
+
+Let's see how it performs on `testing_set` 
+
+```{r}
+
+prediction_rf <- predict(model_rf,
+                         newdata = testing_set)
+
+confusionMatrix(prediction_rf, testing_set$classe)
+
+```
+
+
+
+### XGBoost
+
+XGBoost has shown to be one of the most successful machine learning algorithms.  Let's see how it will work here.
+
+```{r cache=TRUE}
+model_xgboost <- train(classe ~ .,
+                  method = "xgbTree",
+                  data = training_set,
+                  trControl = trainControl(
+                          method = "cv", 
+                          number = 5
+                  ))
+
+model_xgboost$finalModel
+```
+Let's see how it performs on `testing_set` 
+
+```{r}
+
+prediction_xgboost <- predict(model_xgboost,
+                         newdata = testing_set)
+
+confusionMatrix(prediction_xgboost, testing_set$classe)
+
+```
+
+
+
+
+### Decision Tree
+
+```{r cache=TRUE}
+train_control <- trainControl(method="cv", number=3, verboseIter=F)
+
+model_trees <- train(classe ~ ., 
+                   method = "rpart",
+                   trControl = train_control,
+                   data = training_set)
+
+rattle::fancyRpartPlot(model_trees$finalModel)
+```
+Let's see how it performs on `testing_set` 
+
+```{r}
+
+prediction_trees <- predict(model_trees,
+                         newdata = testing_set)
+
+confusionMatrix(prediction_trees, testing_set$classe)
+
+```
+
+
+# Conclusion
+
+From the accuracy point of view we have the following results (out-of-sample accuracy):
+
+1. Random Forest: **0.9927**
+2. XGBoost: **0.9942 **
+3. Decision Tree (rpart): 0.5514
+
+
+
+# Predicting on validationData
+
+Let's  see then what is each model predicting on validation data:
+
+```{r}
+
+prediction_rf_validation <- predict(model_rf,
+                                    newdata = validationData)
+
+prediction_xgboost_validation <- predict(model_xgboost,
+                                    newdata = validationData)
+
+prediction_tree_validation <- predict(model_trees,
+                                    newdata = validationData)
+
+print("Random Forest:")
+print(prediction_rf_validation)
+
+print("XGBoost:")
+print(prediction_xgboost_validation)
+
+print("Decision Tree:")
+print(prediction_tree_validation)
+
+
+rbind(prediction_rf_validation,
+      prediction_xgboost_validation,
+      prediction_tree_validation)
+
+```
+
