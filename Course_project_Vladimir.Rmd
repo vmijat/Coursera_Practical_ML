@@ -65,12 +65,12 @@ Let's see all the data fields
 ```{r}
 str(trainData)
 ```
-Let's remove unnecessary variables.  Variables that have a lot of NA should be removed.  Which variables have lot of NAs?
+Let's remove unnecessary variables.  Variables that have a lot of NA should be removed.  How many variables have lot of NAs?
 
 ```{r}
 na_count <-sapply(trainData, function(y) sum(length(which(is.na(y)))))
 na_count <- data.frame(na_count)
-na_count
+sum(na_count > 0)
 ```
 
 Seems like there are columns that are only NAs.  These should be removed, as they can't contribute to our prediction model. 
@@ -127,7 +127,7 @@ dim(testing_set)
 
 Let's examine the correlation among those variable. 
 
-```{r out.width="80%"}
+```{r out.width="90%"}
 corr_matrix <- cor(training_set[, -53])
 corrplot(corr_matrix, 
          type = "lower",
@@ -220,7 +220,7 @@ confusionMatrix(prediction_xgboost, testing_set$classe)
 
 ### Decision Tree
 
-```{r cache=TRUE, out.width="50%"}
+```{r cache=TRUE, out.width="30%"}
 train_control <- trainControl(method="cv", number=3, verboseIter=F)
 
 model_trees <- train(classe ~ ., 
