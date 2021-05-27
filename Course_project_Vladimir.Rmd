@@ -63,8 +63,10 @@ testData <- NULL
 Let's see all the data fields
 
 ```{r}
-str(trainData)
+str(trainData, give.head = TRUE)
 ```
+
+
 Let's remove unnecessary variables.  Variables that have a lot of NA should be removed.  How many variables have lot of NAs?
 
 ```{r}
@@ -220,7 +222,7 @@ confusionMatrix(prediction_xgboost, testing_set$classe)
 
 ### Decision Tree
 
-```{r cache=TRUE, out.width="30%"}
+```{r cache=TRUE, out.width="90%"}
 train_control <- trainControl(method="cv", number=3, verboseIter=F)
 
 model_trees <- train(classe ~ ., 
