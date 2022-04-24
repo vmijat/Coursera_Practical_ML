@@ -1,7 +1,7 @@
 ---
 title: "Practical Machine Learning Course Project"
 author: "Vladimir Mijatovic"
-date: "5/26/2021"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -18,6 +18,8 @@ Using devices such as *Jawbone Up*, *Nike FuelBand*, and *Fitbit* it is now poss
 In this particular datased, a group of 6 participants have collected measures from various sensors while doing barbell lifts correctly and incorrectly.  
 More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
 
+Correct performance is marked with "Class A", while other classes are incorrect exercise (with mistakes).
+
 ### Prepare the Environment
 
 Let's prepare the environment
@@ -29,7 +31,7 @@ library(nnet)
 library(caret)
 library(corrplot)
 library(rattle)
-set.seed(2282)
+set.seed(22822)
 ```
 
 ## Load and Prepare Data
@@ -42,6 +44,7 @@ trainData <- read.csv("./_data/pml-training.csv",
                       header = T, 
                       check.names = F,
                       stringsAsFactors = F)
+
 testData <- read.csv("./_data/pml-testing.csv",
                      header = T,
                      check.names = F,
@@ -70,6 +73,7 @@ str(trainData, give.head = TRUE)
 Let's remove unnecessary variables.  Variables that have a lot of NA should be removed.  How many variables have lot of NAs?
 
 ```{r}
+
 na_count <-sapply(trainData, function(y) sum(length(which(is.na(y)))))
 na_count <- data.frame(na_count)
 sum(na_count > 0)
@@ -92,16 +96,16 @@ validationData <- validationData[, -c(1:7)]
 
 We should remove variables that are having Near-Zero Variance, as they don't contribute to our model either. 
 
-```{r}
+```{r near_zero_variance_variables, cache=TRUE}
 near_zero_variables <- nearZeroVar(trainData)
 ```
 
 These are variables that should be removed: 
-``` {r}
+``` {r }
 names(trainData)[near_zero_variables]
 ```
 
-```{r}
+```{r remove_near_zero_variables}
 trainData <- trainData[, -near_zero_variables]
 
 ```
@@ -109,8 +113,9 @@ trainData <- trainData[, -near_zero_variables]
 
 
 ### Partitioning 
-Now let's partition training dataset:
-```{r}
+Now let's partition training dataset.  We partition it in 70% training and 30% testing set:
+
+```{r partitioning_dataset}
 inTrain <- createDataPartition(trainData$classe, 
                                p = 0.7, 
                                list = FALSE)
@@ -142,7 +147,7 @@ corrplot(corr_matrix,
 
 First let's make response variable `classe` into ordered factor variable
 
-```{r}
+```{r order_response_variable}
 # make it into factor and relevel (so that "A" is reference level)
 training_set$classe <- factor(training_set$classe)
 training_set$classe <- relevel(training_set$classe, 
@@ -154,20 +159,21 @@ testing_set$classe <- relevel(testing_set$classe,
 ```
 
 
-Now let's train our models:
+Finally we can train our models and cross-validate.  In order to estimate which model performs the best, we will use 3 different ML algorithms, and cross-validate to see their performance.
 
 ### Random Forest
 
-Let's train the model
-```{r cache=TRUE}
+Let's train the model. We use in train control cross-validation method to avoid overfitting.   We use 5-fold cross-validation. 
+
+
+```{r model_randomForest, cache=TRUE, warning=FALSE, message=FALSE}
 
 model_rf <- train(classe ~ .,
                   method = "rf",
                   data = training_set,
                   trControl = trainControl(
-                          method = "cv"
-                  ),
-                  number = 5,
+                          method = "cv",
+                          number = 5),
                   allowParallel = TRUE)
 
 model_rf$finalModel
@@ -180,22 +186,25 @@ model_rf$finalModel
 
 Let's see how it performs on `testing_set` 
 
-```{r}
+```{r }
 
 prediction_rf <- predict(model_rf,
                          newdata = testing_set)
 
-confusionMatrix(prediction_rf, testing_set$classe)
+conf_mat_rf <- confusionMatrix(prediction_rf, testing_set$classe)
+conf_mat_rf
 
 ```
 
+The accuracy is `r conf_mat_rf$overall['Accuracy']`
 
 
 ### XGBoost
 
 XGBoost has shown to be one of the most successful machine learning algorithms.  Let's see how it will work here.
+We build model, as always, on training_set, using 5-fold cross-validation to reduce overfitting.
 
-```{r cache=TRUE}
+```{r model_xgboost, cache=TRUE, warning=FALSE, message=FALSE}
 model_xgboost <- train(classe ~ .,
                   method = "xgbTree",
                   data = training_set,
@@ -206,6 +215,7 @@ model_xgboost <- train(classe ~ .,
 
 model_xgboost$finalModel
 ```
+
 Let's see how it performs on `testing_set` 
 
 ```{r}
@@ -213,17 +223,19 @@ Let's see how it performs on `testing_set`
 prediction_xgboost <- predict(model_xgboost,
                          newdata = testing_set)
 
-confusionMatrix(prediction_xgboost, testing_set$classe)
-
+conf_mat_xgboost <- confusionMatrix(prediction_xgboost, testing_set$classe)
+conf_mat_xgboost
 ```
 
-
+It accuracy is `r conf_mat_xgboost$overall['Accuracy']`
 
 
 ### Decision Tree
 
-```{r cache=TRUE, out.width="90%"}
-train_control <- trainControl(method="cv", number=3, verboseIter=F)
+Now we should try with simple Decision Tree model, also using 5-fold cross-validation to avoid overfitting.
+
+```{r model_decisionTree, cache=TRUE, out.width="90%", warning=FALSE}
+train_control <- trainControl(method="cv", number=5, verboseIter=F)
 
 model_trees <- train(classe ~ ., 
                    method = "rpart",
@@ -240,44 +252,39 @@ Let's see how it performs on `testing_set`
 prediction_trees <- predict(model_trees,
                          newdata = testing_set)
 
-confusionMatrix(prediction_trees, testing_set$classe)
+conf_mat_rpart <- confusionMatrix(prediction_trees, testing_set$classe)
+conf_mat_rpart
 
 ```
+
+Accuracy of simple Decision Tree model is only `r conf_mat_rpart$overall['Accuracy']`, which is clearly inferior to Random Forest and XGBoost.
 
 
 # Conclusion
 
 From the accuracy point of view we have the following results (out-of-sample accuracy):
 
-1. Random Forest: **0.9927**
-2. XGBoost: **0.9942 **
-3. Decision Tree (rpart): **0.5514**
+1. Random Forest: **`r conf_mat_rf$overall['Accuracy']`**
+2. XGBoost: **`r conf_mat_xgboost$overall['Accuracy']` **
+3. Decision Tree (rpart): **`r conf_mat_rpart$overall['Accuracy']`**
 
 
 
 # Predicting on validationData
 
-Let's  see then what is each model predicting on validation data:
+Let's use XGBoost to predict on validation data:
 
 ```{r}
 
-prediction_rf_validation <- predict(model_rf,
-                                    newdata = validationData)
 
 prediction_xgboost_validation <- predict(model_xgboost,
                                     newdata = validationData)
 
-prediction_tree_validation <- predict(model_trees,
-                                    newdata = validationData)
 
-print("Random Forest:")
-print(prediction_rf_validation)
 
 print("XGBoost:")
 print(prediction_xgboost_validation)
 
-print("Decision Tree:")
-print(prediction_tree_validation)
 
 
 ```
