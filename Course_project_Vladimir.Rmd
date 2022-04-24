@@ -264,9 +264,9 @@ Accuracy of simple Decision Tree model is only `r conf_mat_rpart$overall['Accura
 
 From the accuracy point of view we have the following results (out-of-sample accuracy):
 
-1. Random Forest: **`r conf_mat_rf$overall['Accuracy']`**
-2. XGBoost: **`r conf_mat_xgboost$overall['Accuracy']` **
-3. Decision Tree (rpart): **`r conf_mat_rpart$overall['Accuracy']`**
+1. Random Forest: **`r round(conf_mat_rf$overall['Accuracy'], 3)`** %
+2. XGBoost: **`r round(conf_mat_xgboost$overall['Accuracy'], 3)` ** %
+3. Decision Tree (rpart): **`r round(conf_mat_rpart$overall['Accuracy'], 3)`**
 
 
 
@@ -274,7 +274,7 @@ From the accuracy point of view we have the following results (out-of-sample acc
 
 Let's use XGBoost to predict on validation data:
 
-```{r}
+```{r echo=FALSE}
 
 
 prediction_xgboost_validation <- predict(model_xgboost,
@@ -282,7 +282,11 @@ prediction_xgboost_validation <- predict(model_xgboost,
 
 
 
-paste0("XGBoost: ", prediction_xgboost_validation)
+print("XGBoost: ")
+
+data.frame(problem_id = validationData$problem_id, 
+           prediction = prediction_xgboost_validation)
+
 
 
 
