@@ -24,7 +24,7 @@ Correct performance is marked with "Class A", while other classes are incorrect 
 
 Let's prepare the environment
 
-```{r echo=FALSE}
+```{r echo=FALSE, message=FALSE}
 #setup for the needed libraries
 library(tidyverse)
 library(nnet)
@@ -50,7 +50,7 @@ testData <- read.csv("./_data/pml-testing.csv",
                      check.names = F,
                      stringsAsFactors = F)
 
-dim(testData)
+paste0("Dimensions of data are: ", dim(testData))
 ```
 
 We can see that test data has only `20` observations.  It is better therefore to call this data `validationData`, and to partition _trainData_ into two groups.  But before partitioning we need to do some cleaning. 
@@ -204,7 +204,7 @@ The accuracy is `r conf_mat_rf$overall['Accuracy']`
 XGBoost has shown to be one of the most successful machine learning algorithms.  Let's see how it will work here.
 We build model, as always, on training_set, using 5-fold cross-validation to reduce overfitting.
 
-```{r model_xgboost, cache=TRUE, warning=FALSE, message=FALSE}
+```{r model_xgboost, cache=TRUE, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 model_xgboost <- train(classe ~ .,
                   method = "xgbTree",
                   data = training_set,
@@ -282,10 +282,10 @@ prediction_xgboost_validation <- predict(model_xgboost,
 
 
 
-print("XGBoost:")
-print(prediction_xgboost_validation)
+paste0("XGBoost: ", prediction_xgboost_validation)
 
 
 
 ```
+
 
